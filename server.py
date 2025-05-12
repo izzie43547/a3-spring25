@@ -36,6 +36,42 @@ class DSUServer:
         self.sessions = {} ##token -> user
         self.clients = []
     
+    def start_server(self):
+        """Start the server and listen for incoming connections."""
+        # Create the store directory if it doesn't exist
+        store_dir = Path(STORE_DIR_PATH)
+        store_dir.mkdir(exist_ok=True)
+        
+        # Create users.json if it doesn't exist
+        users_path = store_dir / USERS_PATH
+        if not users_path.exists():
+            with users_file_lock:
+                with users_path.open('w') as f:
+                    json.dump({}, f)
+        
+        # Create and configure the server socket
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server_socket.bind((self.host, self.port))
+        self.server_socket.listen(5)
+        
+        print(f"Server started on {self.host}:{self.port}")
+        
+        try:
+            while True:
+                client_socket, client_address = self.server_socket.accept()
+                print(f"New connection from {client_address}")
+                client_thread = threading.Thread(
+                    target=self.handle_client,
+                    args=(client_socket, client_address)
+                )
+                client_thread.daemon = True
+                client_thread.start()
+        except KeyboardInterrupt:
+            print("Shutting down server...")
+        finally:
+            self.server_socket.close()
+    
     def handle_client(self, client_socket, client_address):
 
         '''Handle requests from a single client'''
