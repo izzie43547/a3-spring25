@@ -9,12 +9,15 @@ from ds_protocol import (
     DSPProtocolError
 )
 
+
 class TestDSProtocol(unittest.TestCase):
     def test_format_auth_message(self):
         """Test formatting of authentication message"""
         username = "testuser"
         password = "testpass"
-        expected = '{"authenticate": {"username": "testuser", "password": "testpass"}}'
+        expected = ('{"authenticate": {'
+                    '"username": "testuser", '
+                    '"password": "testpass"}}')
         self.assertEqual(format_auth_message(username, password), expected)
 
     def test_format_direct_message(self):
@@ -23,25 +26,25 @@ class TestDSProtocol(unittest.TestCase):
         recipient = "recipient"
         message = "Hello, World!"
         result = json.loads(format_direct_message(token, recipient, message))
-        
+
         self.assertEqual(result["token"], token)
         self.assertEqual(result["directmessage"]["recipient"], recipient)
-        self.assertEqual(result["directmessage"]["entry"], message)
+        self.assertEqual(result["directmessage"]["message"], message)
         self.assertIn("timestamp", result["directmessage"])
 
     def test_format_fetch_request(self):
         """Test formatting of fetch request"""
         token = "test-token"
-        
+
         # Test 'all' fetch type
         result_all = json.loads(format_fetch_request(token, 'all'))
         self.assertEqual(result_all["token"], token)
         self.assertEqual(result_all["fetch"], "all")
-        
+
         # Test 'unread' fetch type
         result_unread = json.loads(format_fetch_request(token, 'unread'))
         self.assertEqual(result_unread["fetch"], "unread")
-        
+
         # Test invalid fetch type
         with self.assertRaises(DSPProtocolError):
             format_fetch_request(token, 'invalid')
@@ -68,7 +71,7 @@ class TestDSProtocol(unittest.TestCase):
         """Test extracting invalid JSON response"""
         with self.assertRaises(DSPProtocolError):
             extract_json("invalid json")
-        
+
         with self.assertRaises(DSPProtocolError):
             extract_json('{"not_response": {}}')
 
@@ -79,6 +82,7 @@ class TestDSProtocol(unittest.TestCase):
         self.assertTrue(is_valid_response(valid_response))
         self.assertFalse(is_valid_response(invalid_response))
         self.assertFalse(is_valid_response(None))
+
 
 if __name__ == '__main__':
     unittest.main()

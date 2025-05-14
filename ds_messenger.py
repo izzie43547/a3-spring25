@@ -22,15 +22,17 @@ from ds_protocol import (
     DSPProtocolError
 )
 
+
 class DirectMessage:
     """
     Represents a direct message between users.
     """
-    def __init__(self, recipient: str = None, sender: str = None, 
+
+    def __init__(self, recipient: str = None, sender: str = None,
                  message: str = None, timestamp: float = None):
         """
         Initialize a DirectMessage instance.
-        
+
         Args:
             recipient: The recipient's username
             sender: The sender's username
@@ -41,22 +43,33 @@ class DirectMessage:
         self.sender = sender
         self.message = message
         self.timestamp = timestamp if timestamp is not None else time.time()
-    
+
     def __str__(self) -> str:
         """String representation of the DirectMessage."""
-        time_str = datetime.fromtimestamp(self.timestamp).strftime('%Y-%m-%d %H:%M:%S')
-        sender_info = f"From: {self.sender}" if self.sender else f"To: {self.recipient}"
+        time_str = datetime.fromtimestamp(
+            self.timestamp).strftime('%Y-%m-%d %H:%M:%S')
+        if self.sender:
+            sender_info = f"From: {self.sender}"
+        else:
+            sender_info = f"To: {self.recipient}"
         return f"[{time_str}] {sender_info}: {self.message}"
+
 
 class DirectMessenger:
     """
     Handles direct messaging functionality with the DSP server.
     """
-    def __init__(self, dsuserver: str = '127.0.0.1', username: str = None, 
-                 password: str = None, port: int = 3001, is_test: bool = False):
+
+    def __init__(
+            self,
+            dsuserver: str = '127.0.0.1',
+            username: str = None,
+            password: str = None,
+            port: int = 3001,
+            is_test: bool = False):
         """
         Initialize the DirectMessenger with server and user details.
-        
+
         Args:
             dsuserver: The server address (default: '127.0.0.1')
             username: The username for authentication
@@ -72,80 +85,83 @@ class DirectMessenger:
         self.socket = None
         self.connected = False
         self._is_test = is_test  # Flag for test environment
-        
+
         # Connect to the server and authenticate if credentials are provided
         # Skip connection in test mode to allow for mocking
         if username and password and not is_test:
             self._connect()
             self._authenticate()
-    
+
     def _connect(self) -> None:
-        """Establish a connection to the server."""
-        try:
-            if not hasattr(self, 'socket') or self.socket is None:
+        """
+        Establish a connection to the server.
+        """
+        if not self.connected:
+            try:
                 self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.socket.connect((self.dsuserver, self.port))
-            self.connected = True
-        except Exception as e:
-            self.connected = False
-            raise ConnectionError(f"Failed to connect to server: {str(e)}")
-    
+                self.connected = True
+            except Exception as e:
+                print(f"Failed to connect to server: {e}")
+                self.connected = False
+                raise ConnectionError(f"Failed to connect to server: {e}") from e
+
     def _disconnect(self) -> None:
         """Close the connection to the server."""
         if self.socket:
             try:
                 self.socket.close()
-            except:
+            except BaseException:
                 pass
             finally:
                 self.socket = None
                 self.connected = False
-    
+
     def _authenticate(self) -> bool:
         """
         Authenticate with the server using the provided credentials.
-        
+
         Returns:
             bool: True if authentication was successful, False otherwise
         """
         if not self.connected:
             self._connect()
-        
+
         try:
             # Format and send authentication message
             auth_msg = format_auth_message(self.username, self.password)
             self._send(auth_msg)
-            
+
             # Get and process the server response
             response = self._receive()
             server_response = extract_json(response)
-            
+
             if is_valid_response(server_response) and server_response.token:
                 self.token = server_response.token
                 return True
             return False
-            
+
         except Exception as e:
             raise ConnectionError(f"Authentication failed: {str(e)}")
-    
+
     def _send(self, message: str) -> None:
         """
         Send a message to the server.
-        
+
         Args:
             message: The message to send
-            
+
         Raises:
             ConnectionError: If not connected to the server
         """
         if not self.connected:
             raise ConnectionError("Not connected to server")
-        
+
         try:
             # Ensure the message ends with a newline
             if not message.endswith('\n'):
                 message += '\n'
-                
+
             # Check if we have a mock socket or a real one
             if hasattr(self.socket, 'sendall'):
                 # Real socket
@@ -156,20 +172,21 @@ class DirectMessenger:
         except Exception as e:
             self.connected = False
             raise ConnectionError(f"Failed to send message: {str(e)}")
-    
+
     def _receive(self) -> str:
         """
         Receive a message from the server.
-        
+
         Returns:
             str: The received message
-            
+
         Raises:
-            ConnectionError: If not connected to the server or connection is lost
+            ConnectionError: If not connected to the server or
+                connection is lost
         """
         if not self.connected:
             raise ConnectionError("Not connected to server")
-        
+
         try:
             # Check if we have a mock socket or a real one
             if hasattr(self.socket, 'makefile'):
@@ -178,7 +195,8 @@ class DirectMessenger:
                 response = buffer.readline().strip()
             else:
                 # Mock socket - get the response from the mock
-                response = self.socket.makefile.return_value.readline.return_value
+                mock_file = self.socket.makefile.return_value
+                response = mock_file.readline.return_value
                 if callable(response):
                     response = response()
                 if isinstance(response, dict):
@@ -188,139 +206,156 @@ class DirectMessenger:
         except Exception as e:
             self.connected = False
             raise ConnectionError(f"Failed to receive message: {str(e)}")
-    
+
     def send(self, message: str, recipient: str) -> bool:
         """
         Send a direct message to another user.
-        
+
         Args:
             message: The message content
             recipient: The recipient's username
-            
+
         Returns:
             bool: True if message was sent successfully, False otherwise
         """
         if not self.connected or not self.token:
             if not self._authenticate():
                 return False
-        
+
         try:
             # Format and send the direct message
             msg = format_direct_message(self.token, recipient, message)
             self._send(msg)
-            
+
             # Get and process the server response
             response = self._receive()
             server_response = extract_json(response)
-            
+
             # Check if we're in a test environment
             if hasattr(self, '_is_test') and self._is_test:
                 return True
-                
+
             return is_valid_response(server_response)
-            
+
         except Exception as e:
             print(f"Failed to send message: {str(e)}")
             return False
-    
+
     def _parse_messages(self, messages_data: list) -> List[DirectMessage]:
         """
         Parse message data from the server into DirectMessage objects.
-        
+
         Args:
             messages_data: List of message dictionaries from the server
-            
+
         Returns:
             List of DirectMessage objects
         """
         messages = []
+        if not messages_data:
+            return messages
+
         for msg_data in messages_data:
-            # Determine if this is an incoming or outgoing message
-            if 'from' in msg_data:
-                # Incoming message
-                dm = DirectMessage(
-                    recipient=self.username,
-                    sender=msg_data['from'],
-                    message=msg_data['message'],
-                    timestamp=float(msg_data['timestamp'])
-                )
-            else:
-                # Outgoing message
-                dm = DirectMessage(
-                    recipient=msg_data.get('recipient'),
-                    sender=self.username,
-                    message=msg_data['message'],
-                    timestamp=float(msg_data['timestamp'])
-                )
-            messages.append(dm)
+            if not isinstance(msg_data, dict):
+                continue
+
+            try:
+                # Determine if this is an incoming or outgoing message
+                if 'from' in msg_data:
+                    # Incoming message
+                    dm = DirectMessage(
+                        recipient=self.username,
+                        sender=msg_data.get('from'),
+                        message=msg_data.get('message', ''),
+                        timestamp=float(msg_data.get('timestamp', time.time()))
+                    )
+                    messages.append(dm)
+
+                elif 'to' in msg_data and 'message' in msg_data:
+                    # Outgoing message
+                    dm = DirectMessage(
+                        recipient=msg_data.get('to'),
+                        sender=self.username,
+                        message=msg_data.get('message', ''),
+                        timestamp=float(msg_data.get('timestamp', time.time()))
+                    )
+                    messages.append(dm)
+
+            except (ValueError, TypeError) as e:
+                # Skip messages with invalid timestamps or other parsing errors
+                print(f"Warning: Failed to parse message: {e}")
+                continue
+
         return messages
-    
+
     def retrieve_new(self) -> List[DirectMessage]:
         """
         Retrieve new (unread) messages from the server.
-        
+
         Returns:
             List of DirectMessage objects containing unread messages
         """
         if not self.connected or not self.token:
             if not self._authenticate():
                 return []
-        
+
         try:
             # Request unread messages
             fetch_msg = format_fetch_request(self.token, 'unread')
             self._send(fetch_msg)
-            
+
             # Get and process the server response
             response = self._receive()
             server_response = extract_json(response)
-            
+
             # Check if we're in a test environment
             if hasattr(self, '_is_test') and self._is_test:
                 # Return test messages directly
-                return self._parse_messages(getattr(server_response, 'messages', []))
-                
+                return self._parse_messages(
+                    getattr(server_response, 'messages', []))
+
             if is_valid_response(server_response):
                 return self._parse_messages(server_response.messages)
             return []
-            
+
         except Exception as e:
             print(f"Failed to retrieve new messages: {str(e)}")
             return []
-    
+
     def retrieve_all(self) -> List[DirectMessage]:
         """
         Retrieve all messages from the server.
-        
+
         Returns:
             List of DirectMessage objects containing all messages
         """
         if not self.connected or not self.token:
             if not self._authenticate():
                 return []
-        
+
         try:
             # Request all messages
             fetch_msg = format_fetch_request(self.token, 'all')
             self._send(fetch_msg)
-            
+
             # Get and process the server response
             response = self._receive()
             server_response = extract_json(response)
-            
+
             # Check if we're in a test environment
             if hasattr(self, '_is_test') and self._is_test:
                 # Return test messages directly
-                return self._parse_messages(getattr(server_response, 'messages', []))
-                
+                return self._parse_messages(
+                    getattr(server_response, 'messages', []))
+
             if is_valid_response(server_response):
                 return self._parse_messages(server_response.messages)
             return []
-            
+
         except Exception as e:
             print(f"Failed to retrieve all messages: {str(e)}")
             return []
-    
+
     def __del__(self):
         """Clean up resources when the object is destroyed."""
         self._disconnect()
