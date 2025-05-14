@@ -50,7 +50,7 @@ def format_direct_message(token: str, recipient: str, message: str) -> str:
     direct_msg = {
         "token": token,
         "directmessage": {
-            "entry": message,
+            "message": message,  # Changed from 'entry' to 'message' to match server expectation
             "recipient": recipient,
             "timestamp": time.time()
         }

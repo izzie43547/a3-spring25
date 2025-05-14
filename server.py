@@ -141,40 +141,36 @@ class DSUServer:
                     
                     ###direct message handling
                     elif 'directmessage' in command:
-                        
-                        args = command['directmessage']
-
                         if 'token' not in command:
                             message = 'Missing token.'
                             status = 'error'
                         elif len(command) != 2:
                             message = "Incorrectly formatted directmessage command."
                             status = 'error'
-                        elif args not in ['all', 'unread'] and not (isinstance(args, dict) and len(args) == 3):
-                            message = "Incorrect fields provided to directmessage command object."
-                            status = 'error'
-                        elif isinstance(args, dict) and not all(field in command['directmessage'] for field in ['entry', 'timestamp', 'recipient']):
-                            message = "Missing required fields for directmessage command."
-                            status = 'error'
                         else:
-                            token = command['token']
-                            recipient = args['recipient']
-                            #timestamp = args['timestamp']
-                            timestamp = str((datetime.now().timestamp()))
-                            entry = args['entry']
-                            if token == current_user_token and token in self.sessions:
-                                current_user = self.sessions[token]
-                                direct_message_sent = True
-                                    
-                                if self._send_message(entry,current_user, recipient, timestamp):
-                                    message = f'Direct message sent'
-                                    status = 'ok'
-                                else:
-                                    message = f'Unable to send direct message'
-                                    status = 'error'
-                            else:
-                                message = 'Invalid user token.'
+                            dm_data = command['directmessage']
+                            if not isinstance(dm_data, dict) or 'recipient' not in dm_data or 'message' not in dm_data:
+                                message = "Missing required fields for direct message (recipient, message)."
                                 status = 'error'
+                            else:
+                                token = command['token']
+                                if token == current_user_token and token in self.sessions:
+                                    current_user = self.sessions[token]
+                                    recipient = dm_data['recipient']
+                                    # Make sure we're using the correct field name
+                                    message_content = dm_data.get('message') or dm_data.get('entry', '')
+                                    timestamp = str(datetime.now().timestamp())
+                                    direct_message_sent = True
+                                    
+                                    if self._send_message(message_content, current_user, recipient, timestamp):
+                                        message = 'Direct message sent'
+                                        status = 'ok'
+                                    else:
+                                        message = 'Unable to send direct message. Recipient may not exist.'
+                                        status = 'error'
+                                else:
+                                    message = 'Invalid user token.'
+                                    status = 'error'
                             
                     elif 'fetch' in command:
                         args = command['fetch']

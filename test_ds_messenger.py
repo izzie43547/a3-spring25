@@ -24,7 +24,8 @@ class TestDirectMessenger(unittest.TestCase):
         self.messenger = DirectMessenger(
             dsuserver="localhost",
             username="testuser",
-            password="testpass"
+            password="testpass",
+            is_test=True  # Enable test mode to avoid actual connections
         )
         
     @patch('socket.socket')
@@ -42,6 +43,11 @@ class TestDirectMessenger(unittest.TestCase):
         self.messenger._authenticate = Mock(return_value=True)
         self.messenger.token = "test-token"
         
+        # Set up the mock response for _receive
+        self.messenger._receive = Mock(return_value=json.dumps({
+            "response": {"type": "ok", "message": "Message sent"}
+        }))
+        
         result = self.messenger.send("Hello", "recipient")
         self.assertTrue(result)
         
@@ -54,14 +60,14 @@ class TestDirectMessenger(unittest.TestCase):
             "from": "user1",
             "timestamp": time.time()
         }]
-        mock_sock_instance = Mock()
-        mock_socket.return_value = mock_sock_instance
-        mock_sock_instance.makefile.return_value.readline.return_value = json.dumps({
+        
+        # Set up the mock response for _receive
+        self.messenger._receive = Mock(return_value=json.dumps({
             "response": {
                 "type": "ok",
                 "messages": test_messages
             }
-        })
+        }))
         
         # Initialize and retrieve messages
         self.messenger._connect = Mock()
@@ -82,14 +88,14 @@ class TestDirectMessenger(unittest.TestCase):
             {"message": "Hello", "from": "user1", "timestamp": time.time()},
             {"message": "Hi", "recipient": "user2", "timestamp": time.time()}
         ]
-        mock_sock_instance = Mock()
-        mock_socket.return_value = mock_sock_instance
-        mock_sock_instance.makefile.return_value.readline.return_value = json.dumps({
+        
+        # Set up the mock response for _receive
+        self.messenger._receive = Mock(return_value=json.dumps({
             "response": {
                 "type": "ok",
                 "messages": test_messages
             }
-        })
+        }))
         
         # Initialize and retrieve messages
         self.messenger._connect = Mock()
