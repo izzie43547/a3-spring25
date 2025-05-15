@@ -8,11 +8,13 @@
 # You should review this code to identify what features you need to support
 # in your program for assignment 1.
 #
-# YOU DO NOT NEED TO READ OR UNDERSTAND THE JSON SERIALIZATION ASPECTS OF THIS CODE 
-# RIGHT NOW, though can you certainly take a look at it if you are curious since we 
-# already covered a bit of the JSON format in class.
+# YOU DO NOT NEED TO READ OR UNDERSTAND THE JSON SERIALIZATION
+# ASPECTS OF THIS CODE RIGHT NOW, though can you certainly
+# take a look at it if you are curious since we already
+# covered a bit of the JSON format in class.
 
-import json, time
+import json
+import time
 from pathlib import Path
 
 
@@ -32,14 +34,13 @@ class IncorrectNotebookError(Exception):
 
 
 class Diary(dict):
-    """ 
-
-    The Diary class is responsible for working with individual user diaries. It currently 
-    supports two features: A timestamp property that is set upon instantiation and 
-    when the entry object is set and an entry property that stores the diary message.
-
     """
-    def __init__(self, entry:str = None, timestamp:float = 0):
+    The Diary class is responsible for working with individual user diaries.
+    It currently supports two features: A timestamp property that is set upon
+    instantiation and when the entry object is set and an entry property that
+    stores the diary message.
+    """
+    def __init__(self, entry: str = None, timestamp: float = 0):
         self._timestamp = timestamp
         self.set_entry(entry)
 
@@ -48,48 +49,45 @@ class Diary(dict):
         dict.__init__(self, entry=self._entry, timestamp=self._timestamp)
     
     def set_entry(self, entry):
-        self._entry = entry 
+        self._entry = entry
+        self._timestamp = time.time()
         dict.__setitem__(self, 'entry', entry)
-
-        # If timestamp has not been set, generate a new from time module
-        if self._timestamp == 0:
-            self._timestamp = time.time()
+        dict.__setitem__(self, 'timestamp', self._timestamp)
 
     def get_entry(self):
         return self._entry
     
-    def set_time(self, time:float):
+    def set_time(self, time: float):
         self._timestamp = time
         dict.__setitem__(self, 'timestamp', time)
     
-    def get_time(self):
+    def get_timestamp(self):
         return self._timestamp
 
     """
-
     The property method is used to support get and set capability for entry and 
     time values. When the value for entry is changed, or set, the timestamp field is 
     updated to the current time.
-
     """ 
     entry = property(get_entry, set_entry)
-    timestamp = property(get_time, set_time)
+    timestamp = property(get_timestamp, set_time)
     
     
 class Notebook:
-    """Notebook is a class that can be used to manage a diary notebook."""
-
+    """
+    Notebook is a class that can be used to manage a diary notebook.
+    """
     def __init__(self, username: str, password: str, bio: str):
-        """Creates a new Notebook object. 
-        
+        """Create a new Notebook object.
+
         Args:
             username (str): The username of the user.
             password (str): The password of the user.
             bio (str): The bio of the user.
         """
-        self.username = username 
-        self.password = password 
-        self.bio = bio 
+        self.username = username
+        self.password = password
+        self.bio = bio
         self._diaries = []
     
 

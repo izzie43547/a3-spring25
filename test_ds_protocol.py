@@ -12,18 +12,24 @@ from ds_protocol import (
     ServerResponse
 )
 
+
+
 class TestDSPProtocol(unittest.TestCase):
+    """Test cases for the DSP protocol implementation."""
+
     def test_format_auth_message(self):
-        """Test formatting authentication message"""
+        """Test formatting authentication message."""
         result = format_auth_message("testuser", "testpass")
-        expected = '{"authenticate": {"username": "testuser", "password": "testpass"}}'
+        expected = ('{"authenticate": {\n    "username": "testuser",\n    "password": "testpass"\n}}')
         self.assertEqual(json.loads(result), json.loads(expected))
 
     def test_format_direct_message(self):
-        """Test formatting direct message"""
+        """Test formatting direct message."""
         with patch('time.time', return_value=1234567890.0):
-            result = format_direct_message("test-token", "recipient", "Hello")
-            expected = '{"token": "test-token", "directmessage": {"message": "Hello", "recipient": "recipient", "timestamp": 1234567890.0}}'
+            result = format_direct_message(
+                "test-token", "recipient", "Hello"
+            )
+            expected = ('{\n    "token": "test-token",\n    "directmessage": {\n        "message": "Hello",\n        "recipient": "recipient",\n        "timestamp": 1234567890.0\n    }\n}')
             self.assertEqual(json.loads(result), json.loads(expected))
 
     def test_format_fetch_request(self):
@@ -40,16 +46,16 @@ class TestDSPProtocol(unittest.TestCase):
             format_fetch_request("test-token", "invalid")
 
     def test_extract_json_valid(self):
-        """Test extracting valid JSON response"""
-        response = '{"response": {"type": "ok", "message": "Success", "token": "test-token"}}'
+        """Test extracting valid JSON response."""
+        response = ('{"response": {\n    "type": "ok",\n    "message": "Success",\n    "token": "test-token"\n}}')
         result = extract_json(response)
         self.assertEqual(result.type, "ok")
         self.assertEqual(result.message, "Success")
         self.assertEqual(result.token, "test-token")
         self.assertEqual(result.messages, [])
-        
+
         # Test with messages
-        response = '{"response": {"type": "ok", "messages": [{"message": "Hi"}]}}'
+        response = ('{"response": {\n    "type": "ok",\n    "messages": [{"message": "Hi"}]\n}}')
         result = extract_json(response)
         self.assertEqual(result.type, "ok")
         self.assertEqual(result.messages, [{"message": "Hi"}])
@@ -63,14 +69,18 @@ class TestDSPProtocol(unittest.TestCase):
             extract_json('{"not_response": {}}')
 
     def test_is_valid_response(self):
-        """Test response validation"""
-        valid_response = ServerResponse(type="ok", message="Success", token="test", messages=[])
+        """Test response validation."""
+        valid_response = ServerResponse(
+            type="ok", message="Success", token="test", messages=[]
+        )
         self.assertTrue(is_valid_response(valid_response))
-        
-        invalid_response = ServerResponse(type="error", message="Failed", token=None, messages=[])
+
+        invalid_response = ServerResponse(
+            type="error", message="Failed", token=None, messages=[]
+        )
         self.assertFalse(is_valid_response(invalid_response))
-        
         self.assertFalse(is_valid_response(None))
+
 
 if __name__ == '__main__':
     unittest.main()

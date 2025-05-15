@@ -10,15 +10,21 @@ from collections import namedtuple
 from typing import Dict, Any, Optional, List, Union
 
 # Create a namedtuple to hold the values we expect to retrieve from json messages.
-ServerResponse = namedtuple('ServerResponse', ['type', 'message', 'token', 'messages'])
+ServerResponse = namedtuple('ServerResponse',
+                         ['type', 'message', 'token', 'messages'])
+
+
 
 class DSPProtocolError(Exception):
     """Custom exception for DSP protocol related errors."""
     pass
 
+
+
+
+
 def format_auth_message(username: str, password: str) -> str:
-    """
-    Formats an authentication message to be sent to the server.
+    """Format an authentication message to be sent to the server.
     
     Args:
         username: The username for authentication
@@ -35,6 +41,8 @@ def format_auth_message(username: str, password: str) -> str:
     }
     return json.dumps(auth_msg)
 
+
+
 def format_direct_message(token: str, recipient: str, message: str) -> str:
     """
     Formats a direct message to be sent to another user.
@@ -50,16 +58,20 @@ def format_direct_message(token: str, recipient: str, message: str) -> str:
     direct_msg = {
         "token": token,
         "directmessage": {
-            "message": message,  # Changed from 'entry' to 'message' to match server expectation
+            # Changed from 'entry' to 'message' to match server expectation
+            "message": message,
             "recipient": recipient,
             "timestamp": time.time()
         }
     }
-    return json.dumps(direct_msg)
+    return json.dumps(direct_msg, indent=4)
+
+
+
+
 
 def format_fetch_request(token: str, fetch_type: str = 'all') -> str:
-    """
-    Formats a fetch request to retrieve messages.
+    """Format a fetch request to retrieve messages.
     
     Args:
         token: The authentication token
@@ -69,7 +81,9 @@ def format_fetch_request(token: str, fetch_type: str = 'all') -> str:
         A JSON string representing the fetch request
     """
     if fetch_type not in ['all', 'unread']:
-        raise DSPProtocolError("Invalid fetch type. Must be 'all' or 'unread'")
+        raise DSPProtocolError(
+            "Invalid fetch type. Must be 'all' or 'unread'"
+        )
     
     fetch_msg = {
         "token": token,
@@ -77,9 +91,12 @@ def format_fetch_request(token: str, fetch_type: str = 'all') -> str:
     }
     return json.dumps(fetch_msg)
 
+
+
+
+
 def extract_json(json_msg: str) -> ServerResponse:
-    """
-    Extracts and validates the JSON response from the server.
+    """Extract and validate the JSON response from the server.
     
     Args:
         json_msg: The JSON string received from the server
@@ -95,7 +112,9 @@ def extract_json(json_msg: str) -> ServerResponse:
         
         # Check if response exists and has required fields
         if 'response' not in json_obj:
-            raise DSPProtocolError("Invalid server response: missing 'response' field")
+            raise DSPProtocolError(
+                "Invalid server response: missing 'response' field"
+            )
             
         response = json_obj['response']
         
@@ -119,9 +138,12 @@ def extract_json(json_msg: str) -> ServerResponse:
     except Exception as e:
         raise DSPProtocolError(f"Error processing server response: {str(e)}")
 
+
+
+
+
 def is_valid_response(response: ServerResponse) -> bool:
-    """
-    Validates if the server response is successful.
+    """Validate if the server response is successful.
     
     Args:
         response: The ServerResponse namedtuple

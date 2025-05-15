@@ -1,3 +1,8 @@
+"""Server implementation for the Direct Messaging application.
+
+This module implements a server that handles user authentication, message passing,
+and user management for a direct messaging service.
+"""
 import socket
 import threading
 import json
@@ -7,33 +12,76 @@ from datetime import datetime
 import string
 import secrets
 
+# Configuration constants
 USERS_PATH = 'users.json'
 STORE_DIR_PATH = 'store'
-DEBUG = True ##SET THIS TO FALSE IF YOU DONT WANT DEBUGGING OUTPUT
+# Set to False to disable debug output
+DEBUG = True
 
-##The server uses a json files to store data:
-##users - bio's, posts
+# Server data storage structure:
+# users.json contains user data with the following schema:
+# {
+#   "username": {
+#       "password": "hashed_password",
+#       "messages": [
+#           {
+#               "entry": "message text",
+#               "from/recipient": "other_username",
+#               "timestamp": "ISO timestamp",
+#               "status": "unread|read"
+#           }
+#       ]
+#   }
+#}
 
-##user schema:
-#{user_name: {'password', messages[{'entry','from/recipient', 'timestamp','status'}]
-#status can be "unread" or "read"
-#"from" denotes the user recieved the message and "recipient" denotes that they sent it
 
 def generate_token():
-    '''Randomly generate a token of the form xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'''
-    return f'{_generate_random_string(8)}-{_generate_random_string(4)}-{_generate_random_string(4)}-{_generate_random_string(4)}-{_generate_random_string(12)}'
+    """Generate a random token in the format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.
+    
+    Returns:
+        str: A randomly generated token string.
+    """
+    return (
+        f'{_generate_random_string(8)}-{_generate_random_string(4)}-'
+        f'{_generate_random_string(4)}-{_generate_random_string(4)}-'
+        f'{_generate_random_string(12)}'
+    )
 
-def _generate_random_string(n:int) -> str:
-    '''Generate a randm alphanumeric string of length n'''
+def _generate_random_string(n: int) -> str:
+    """Generate a random alphanumeric string of specified length.
+    
+    Args:
+        n: The length of the string to generate.
+        
+    Returns:
+        str: A random alphanumeric string.
+    """
     alphanums = string.ascii_letters + string.digits
     return ''.join(secrets.choice(alphanums) for _ in range(n))
 
+# Global lock for thread-safe access to users file
 users_file_lock = threading.Lock()
+
+
 class DSUServer:
-    def __init__(self, host = '127.0.0.1', port = 3001):
+    """Server class for handling direct messaging functionality.
+    
+    This class manages user connections, authentication, and message passing
+    between clients in a direct messaging application.
+    """
+    
+    def __init__(self, host='127.0.0.1', port=3001):
+        """Initialize the server with the given host and port.
+        
+        Args:
+            host: The host address to bind to (default: '127.0.0.1')
+            port: The port to listen on (default: 3001)
+        """
         self.host = host
         self.port = port
-        self.sessions = {} ##token -> user
+        # Dictionary mapping tokens to usernames for active sessions
+        self.sessions = {}
+        # List of connected client sockets
         self.clients = []
     
     def start_server(self):
@@ -73,13 +121,27 @@ class DSUServer:
             self.server_socket.close()
     
     def handle_client(self, client_socket, client_address):
-
-        '''Handle requests from a single client'''
-        current_user_token = None   
+        """Handle requests from a single client connection.
+        
+        Args:
+            client_socket: The socket object for the client connection
+            client_address: The address of the client (host, port)
+        """
+        current_user_token = None
         self.clients.append(client_socket)
+        client_info = f"{client_address[0]}:{client_address[1]}"
+        
+        if DEBUG:
+            print(f"New client connected: {client_info}")
+            
         try:
             while True:
                 data = client_socket.recv(4096)
+                if not data:
+                    if DEBUG:
+                        print(f"Client {client_info} disconnected")
+                    break
+                    
                 if DEBUG:
                     print(f"Message received by server: {repr(data)}")
                 direct_message_read = False
@@ -221,8 +283,18 @@ class DSUServer:
             client_socket.close()
             self.clients.remove(client_socket)
             
-    def _send_message(self, entry, username, recipient, timestamp = ''):
-        '''Sends a message from one user (username) to another (recipient). Creates the message in the user's associated object'''
+    def _send_message(self, entry, username, recipient, timestamp=''):
+        """Send a message from one user to another.
+        
+        Args:
+            entry: The message content
+            username: Sender's username
+            recipient: Recipient's username
+            timestamp: Optional timestamp (defaults to current time if not provided)
+            
+        Returns:
+            bool: True if message was sent successfully, False otherwise
+        """
         with users_file_lock:
             users_path = Path('.') / STORE_DIR_PATH / Path(USERS_PATH)
             existing_users = None
@@ -246,7 +318,14 @@ class DSUServer:
         return True
 
     def _read_all_messages(self, username):
-        '''Retrieves all messages associated with a user'''
+        """Retrieve all messages for a given user.
+        
+        Args:
+            username: The username to retrieve messages for
+            
+        Returns:
+            list: List of messages or empty list if user not found
+        """
         with users_file_lock:
             users_path = Path('.') / STORE_DIR_PATH / Path(USERS_PATH)
             existing_users = None
@@ -276,7 +355,14 @@ class DSUServer:
 
     
     def _read_unread_messages(self, username):
-        '''Retrieves unread messages associated with the user'''
+        """Retrieve all unread messages for a given user.
+        
+        Args:
+            username: The username to retrieve unread messages for
+            
+        Returns:
+            list: List of unread messages or empty list if user not found
+        """
         with users_file_lock:
             users_path = Path('.') / STORE_DIR_PATH / Path(USERS_PATH)
             existing_users = None
@@ -298,31 +384,6 @@ class DSUServer:
                 with users_path.open('w') as user_file:
                     existing_users[username] = fetched_user
                     
-                    json.dump(existing_users, user_file)
-            
-            return sorted(result, key=lambda x: float(x["timestamp"]))
-
-    def _get_user(self, username):
-
-        '''Gets the user object associated with the username. This function is never called.'''
-        with users_file_lock:
-            users_path = Path('.') / STORE_DIR_PATH / Path(USERS_PATH)
-            with users_path.open('r') as user_file:
-                existing_users = json.load(user_file)
-                fetched_user = existing_users.get(username, None)
-                return fetched_user
-    
-
-
-    def _get_or_create_new_user(self, username, password):
-
-        '''Read from the user file and get the username associated with the username. If it doesnt exist, create a new user.'''
-        with users_file_lock:
-            users_path = Path('.') / STORE_DIR_PATH / Path(USERS_PATH)
-            existing_users = None
-            with users_path.open('r') as user_file:
-                existing_users = json.load(user_file)
-
             fetched_user = existing_users.get(username, None)
             if fetched_user:
                 return fetched_user
@@ -338,7 +399,11 @@ class DSUServer:
             
         
     def _create_storage_system(self):
-        '''Creates the local storage system if it doesnt already exist. Will create a directory called "store" with two files posts.json and users.json'''
+        """Create the local storage system if it doesn't exist.
+        
+        Creates a directory called "store" with users.json file if they
+        don't already exist.
+        """
         users_path = Path('.') / STORE_DIR_PATH / Path(USERS_PATH)
         store_path = Path('.') / Path(STORE_DIR_PATH)
         store_path.mkdir(exist_ok=True)

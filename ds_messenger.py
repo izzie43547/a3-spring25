@@ -104,7 +104,9 @@ class DirectMessenger:
             except Exception as e:
                 print(f"Failed to connect to server: {e}")
                 self.connected = False
-                raise ConnectionError(f"Failed to connect to server: {e}") from e
+                raise ConnectionError(
+                    f"Failed to connect to server: {e}"
+                ) from e
 
     def _disconnect(self) -> None:
         """Close the connection to the server."""
