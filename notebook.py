@@ -91,59 +91,53 @@ class Notebook:
         self._diaries = []
     
 
-    def add_diary(self, diary: Diary) -> None:
-        """Accepts a Diary object as parameter and appends it to the diary list. Diaries 
-        are stored in a list object in the order they are added. So if multiple Diary objects 
-        are created, but added to the Profile in a different order, it is possible for the 
-        list to not be sorted by the Diary.timestamp property. So take caution as to how you 
-        implement your add_diary code.
+    def add_diary(self, diary: Diary):
+        """Add a new diary entry to the notebook.
 
+        Args:
+            diary (Diary): The diary entry to add.
         """
         self._diaries.append(diary)
 
 
     def del_diary(self, index: int) -> bool:
-        """
-        Removes a Diary at a given index and returns `True` if successful and `False` if an invalid index was supplied. 
+        """Delete a diary entry from the notebook.
 
-        To determine which diary to delete you must implement your own search operation on 
-        the diary returned from the get_diaries function to find the correct index.
+        Args:
+            index (int): The index of the diary entry to delete.
 
+        Returns:
+            bool: True if the diary was deleted, False otherwise.
         """
-        try:
+        if 0 <= index < len(self._diaries):
             del self._diaries[index]
             return True
-        except IndexError:
-            return False
+        return False
         
-    def get_diaries(self) -> list[Diary]:
-        """Returns the list object containing all diaries that have been added to the Notebook object"""
+    def get_diaries(self) -> list:
+        """Get all diary entries.
+
+        Returns:
+            list: A list of all diary entries.
+        """
         return self._diaries
 
     def save(self, path: str) -> None:
+        """Save the notebook to a file.
+
+        Args:
+            path (str): The path to save the notebook to.
         """
-        Accepts an existing notebook file to save the current instance of Notebook to the file system.
-
-        Example usage:
-        
-        ```
-        notebook = Notebook('jo)
-        notebook.save('/path/to/file.json')
-        ```
-
-        Raises NotebookFileError, IncorrectNotebookError
-        """
-        p = Path(path)
-
-        if p.exists() and p.suffix == '.json':
-            try:
-                f = open(p, 'w')
-                json.dump(self.__dict__, f, indent=4)
-                f.close()
-            except Exception as ex:
-                raise NotebookFileError("Error while attempting to process the notebook file.", ex)
-        else:
-            raise NotebookFileError("Invalid notebook file path or type")
+        try:
+            with open(path, 'w') as f:
+                json.dump({
+                    'username': self.username,
+                    'password': self.password,
+                    'bio': self.bio,
+                    'diaries': [dict(d) for d in self._diaries]
+                }, f, indent=4)
+        except Exception as e:
+            raise NotebookFileError(f"Failed to save notebook: {str(e)}")
 
     def load(self, path: str) -> None:
         """
