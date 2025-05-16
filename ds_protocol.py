@@ -53,8 +53,12 @@ def format_direct_message(token: str, recipient: str, message: str) -> str:
     direct_msg = {
         "token": token,
         "directmessage": {
+<<<<<<< HEAD
             # Changed from 'entry' to 'message' to match server expectation
             "message": message,
+=======
+            "entry": message,
+>>>>>>> parent of 5095839 (Messages successfully send)
             "recipient": recipient,
             "timestamp": time.time()
         }

@@ -60,22 +60,16 @@ class DirectMessenger:
     Handles direct messaging functionality with the DSP server.
     """
 
-    def __init__(
-            self,
-            dsuserver: str = '127.0.0.1',
-            username: str = None,
-            password: str = None,
-            port: int = 3001,
-            is_test: bool = False):
+    def __init__(self, dsuserver: str = '127.0.0.1', username: str = None, 
+                 password: str = None, port: int = 3001):
         """
         Initialize the DirectMessenger with server and user details.
 
         Args:
             dsuserver: The server address (default: '127.0.0.1')
             username: The username for authentication
-            password: The password for authentication
+        word: The password for authentication
             port: The server port (default: 3001)
-            is_test: Flag to indicate if running in test mode (default: False)
         """
         self.dsuserver = dsuserver
         self.port = port
@@ -84,30 +78,21 @@ class DirectMessenger:
         self.token = None
         self.socket = None
         self.connected = False
-        self._is_test = is_test  # Flag for test environment
-
+        
         # Connect to the server and authenticate if credentials are provided
-        # Skip connection in test mode to allow for mocking
-        if username and password and not is_test:
+        if username and password:
             self._connect()
             self._authenticate()
 
     def _connect(self) -> None:
-        """
-        Establish a connection to the server.
-        """
-        if not self.connected:
-            try:
-                self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.socket.connect((self.dsuserver, self.port))
-                self.connected = True
-            except Exception as e:
-                print(f"Failed to connect to server: {e}")
-                self.connected = False
-                raise ConnectionError(
-                    f"Failed to connect to server: {e}"
-                ) from e
-
+        """Establish a connection to the server."""
+        try:
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.connect((self.dsuserver, self.port))
+            self.connected = True
+        except Exception as e:
+            raise ConnectionError(f"Failed to connect to server: {str(e)}")
+    
     def _disconnect(self) -> None:
         """Close the connection to the server."""
         if self.socket:
@@ -163,14 +148,7 @@ class DirectMessenger:
             # Ensure the message ends with a newline
             if not message.endswith('\n'):
                 message += '\n'
-
-            # Check if we have a mock socket or a real one
-            if hasattr(self.socket, 'sendall'):
-                # Real socket
-                self.socket.sendall(message.encode('utf-8'))
-            else:
-                # Mock socket - just verify the message is sent
-                pass
+            self.socket.sendall(message.encode('utf-8'))
         except Exception as e:
             self.connected = False
             raise ConnectionError(f"Failed to send message: {str(e)}")
@@ -190,20 +168,9 @@ class DirectMessenger:
             raise ConnectionError("Not connected to server")
 
         try:
-            # Check if we have a mock socket or a real one
-            if hasattr(self.socket, 'makefile'):
-                # Real socket
-                buffer = self.socket.makefile('r')
-                response = buffer.readline().strip()
-            else:
-                # Mock socket - get the response from the mock
-                mock_file = self.socket.makefile.return_value
-                response = mock_file.readline.return_value
-                if callable(response):
-                    response = response()
-                if isinstance(response, dict):
-                    response = json.dumps(response)
-                response = str(response).strip()
+            # Create a file-like object from the socket
+            buffer = self.socket.makefile('r')
+            response = buffer.readline().strip()
             return response
         except Exception as e:
             self.connected = False
@@ -232,11 +199,6 @@ class DirectMessenger:
             # Get and process the server response
             response = self._receive()
             server_response = extract_json(response)
-
-            # Check if we're in a test environment
-            if hasattr(self, '_is_test') and self._is_test:
-                return True
-
             return is_valid_response(server_response)
 
         except Exception as e:
@@ -309,13 +271,6 @@ class DirectMessenger:
             # Get and process the server response
             response = self._receive()
             server_response = extract_json(response)
-
-            # Check if we're in a test environment
-            if hasattr(self, '_is_test') and self._is_test:
-                # Return test messages directly
-                return self._parse_messages(
-                    getattr(server_response, 'messages', []))
-
             if is_valid_response(server_response):
                 return self._parse_messages(server_response.messages)
             return []
@@ -343,13 +298,6 @@ class DirectMessenger:
             # Get and process the server response
             response = self._receive()
             server_response = extract_json(response)
-
-            # Check if we're in a test environment
-            if hasattr(self, '_is_test') and self._is_test:
-                # Return test messages directly
-                return self._parse_messages(
-                    getattr(server_response, 'messages', []))
-
             if is_valid_response(server_response):
                 return self._parse_messages(server_response.messages)
             return []
@@ -361,4 +309,3 @@ class DirectMessenger:
     def __del__(self):
         """Clean up resources when the object is destroyed."""
         self._disconnect()
-    pass
