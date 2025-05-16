@@ -1,3 +1,5 @@
+# ICS 32
+# Spring 2025 Assignment 3
 # Direct Messaging Chat Application
 
 A direct messaging client application that allows users to send and receive messages in real-time using a client-server architecture.
