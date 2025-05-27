@@ -136,36 +136,53 @@ class Notebook:
                     'bio': self.bio,
                     'diaries': [dict(d) for d in self._diaries]
                 }, f, indent=4)
-        except Exception as e:
+        except (IOError, OSError) as e:
             raise NotebookFileError(f"Failed to save notebook: {str(e)}")
+        except json.JSONEncodeError as e:
+            raise IncorrectNotebookError(f"Failed to encode notebook data: {str(e)}")
 
     def load(self, path: str) -> None:
         """
-        Populates the current instance of Notebook with data stored in a notebook file.
+        Load notebook data from a file.
 
-        Example usage: 
+        Args:
+            path: Path to the notebook file
 
-        ```
-        notebook = Notebook()
-        notebook.load('/path/to/file.json')
-        ```
-
-        Raises NotebookFileError, IncorrectNotebookError
+        Raises:
+            NotebookFileError: If the file cannot be read
+            IncorrectNotebookError: If the file contains invalid data
         """
         p = Path(path)
+        if not p.exists():
+            raise NotebookFileError(f"File not found: {path}")
 
-        if p.exists() and p.suffix == '.json':
-            try:
-                f = open(p, 'r')
-                obj = json.load(f)
-                self.username = obj['username']
-                self.password = obj['password']
-                self.bio = obj['bio']
-                for diary_obj in obj['_diaries']:
-                    diary = Diary(diary_obj['entry'], diary_obj['timestamp'])
+        try:
+            with open(path, 'r') as f:
+                data = json.load(f)
+                
+            # Validate required fields
+            if not all(key in data for key in ['username', 'password', 'bio']):
+                raise IncorrectNotebookError("Missing required fields")
+                
+            # Update notebook properties
+            self.username = data['username']
+            self.password = data['password']
+            self.bio = data['bio']
+            
+            # Load diaries
+            self._diaries = []
+            for diary_data in data.get('diaries', []):
+                try:
+                    diary = Diary(
+                        entry=diary_data.get('entry'),
+                        timestamp=diary_data.get('timestamp', time.time())
+                    )
                     self._diaries.append(diary)
-                f.close()
-            except Exception as ex:
-                raise IncorrectNotebookError(ex)
-        else:
-            raise NotebookFileError()
+                except Exception as e:
+                    print(f"Warning: Failed to load diary: {str(e)}")
+                    continue
+                    
+        except (IOError, OSError) as e:
+            raise NotebookFileError(f"Failed to read file: {str(e)}")
+        except json.JSONDecodeError as e:
+            raise IncorrectNotebookError(f"Invalid JSON: {str(e)}")

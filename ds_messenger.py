@@ -413,7 +413,7 @@ class DirectMessenger:
                 )
                 messages.append(dm)
                 
-            except Exception as e:
+            except (KeyError, TypeError, ValueError) as e:
                 # Skip malformed messages
                 print(f"Warning: Failed to parse message: {str(e)}")
                 continue
@@ -434,6 +434,32 @@ class DirectMessenger:
         if not self.connected or not self.token:
             if not self._authenticate():
                 return False
+
+        try:
+            # Create message payload
+            payload = {
+                'token': self.token,
+                'directmessage': {
+                    'entry': message,
+                    'recipient': recipient,
+                    'timestamp': time.time()
+                }
+            }
+            
+            # Send message and get response
+            response = self._send(json.dumps(payload))
+            
+            # Parse response
+            response_data = json.loads(response)
+            
+            if response_data.get('response', {}).get('type') == 'ok':
+                return True
+            else:
+                return False
+                
+        except (json.JSONDecodeError, ConnectionError, TimeoutError) as e:
+            print(f"Error sending message: {str(e)}")
+            return False
 
         try:
             # Validate message content
